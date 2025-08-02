@@ -74,16 +74,16 @@ class QuadTree(val rect: Rectangle, val capacity: Int, val color: Int = 255) {
         return children.value.map { it.insert(point) }.any { true }
     }
 
-    private fun Point.inRect(rect: Rectangle): Boolean {
-        return this.x >= rect.x && this.x <= rect.x + rect.width && this.y >= rect.y && this.y <= rect.y + rect.height
-    }
-
     fun query(other: Rectangle): List<Point> {
         if (!rect.intersects(other)) return emptyList()
         val found = mutableListOf<Point>()
         points.filterTo(found) { it.inRect(other) }
         if (children.isInitialized()) children.value.forEach { found.addAll(it.query(other)) }
         return found
+    }
+
+    private fun Point.inRect(rect: Rectangle): Boolean {
+        return this.x >= rect.x && this.x <= rect.x + rect.width && this.y >= rect.y && this.y <= rect.y + rect.height
     }
 
     fun Rectangle.intersects(other: Rectangle): Boolean {
