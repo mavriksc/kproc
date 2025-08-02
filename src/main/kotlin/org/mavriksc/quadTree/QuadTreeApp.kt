@@ -19,19 +19,35 @@ class QuadTreeApp : PApplet() {
 
     override fun draw() {
         background(0)
-        if(mousePressed) quadTree?.insert(Point(mouseX,mouseY))
-        //quadTree?.insert(Point(Random.nextInt(width), Random.nextInt(height)))
-        showTree(quadTree!!)
-        //Thread.sleep(1000)
+        (0..500).forEach { _ ->
+            quadTree?.insert(Point(Random.nextInt(width), Random.nextInt(height)))
+        }
+
+        quadTree?.show(graphics)
+        val x = 495//Random.nextInt(width)
+        val y = 433//Random.nextInt(height)
+        val w = 800//Random.nextInt(width-x)
+        val h = 400//Random.nextInt(height-y)
+        val inside =  quadTree?.query(Rectangle(x, y, w, h)) ?: emptyList()
+
+        strokeWeight(4f)
+        stroke(PINK.rgb)
+        noFill()
+        rect(x.toFloat(), y.toFloat(), w.toFloat(), h.toFloat())
+        inside.forEach {
+            strokeWeight(10f)
+            fill(PINK.rgb)
+            point(it.x.toFloat(), it.y.toFloat())
+        }
+
+        noLoop()
     }
 
-    fun showTree(tree: QuadTree) {
-        tree.show(graphics)
-    }
 }
 
 private val colors = arrayOf(RED.rgb, BLUE.rgb, GREEN.rgb, YELLOW.rgb)
 private val quadrants: Array<Point> = arrayOf(Point(0, 0), Point(1, 0), Point(0, 1), Point(1, 1))
+
 class QuadTree(val rect: Rectangle, val capacity: Int, val color: Int = 255) {
     private val children: Lazy<List<QuadTree>> = lazy { divide() }
     private val points: MutableList<Point> = mutableListOf()
@@ -60,6 +76,18 @@ class QuadTree(val rect: Rectangle, val capacity: Int, val color: Int = 255) {
 
     private fun Point.inRect(rect: Rectangle): Boolean {
         return this.x >= rect.x && this.x <= rect.x + rect.width && this.y >= rect.y && this.y <= rect.y + rect.height
+    }
+
+    fun query(other: Rectangle): List<Point> {
+        if (!rect.intersects(other)) return emptyList()
+        val found = mutableListOf<Point>()
+        points.filterTo(found) { it.inRect(other) }
+        if (children.isInitialized()) children.value.forEach { found.addAll(it.query(other)) }
+        return found
+    }
+
+    fun Rectangle.intersects(other: Rectangle): Boolean {
+        return this.x < other.x + other.width && this.x + this.width > other.x && this.y < other.y + other.height && this.y + this.height > other.y
     }
 
     fun show(graphics: PGraphics) {
