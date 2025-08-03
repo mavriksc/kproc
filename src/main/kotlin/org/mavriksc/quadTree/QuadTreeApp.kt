@@ -15,21 +15,22 @@ class QuadTreeApp : PApplet() {
     override fun setup() {
         background(255)
         quadTree = QuadTree(Rectangle(0, 0, width, height), 4)
-    }
-
-    override fun draw() {
-        background(0)
         (0..500).forEach { _ ->
             quadTree?.insert(Point(Random.nextInt(width), Random.nextInt(height)))
         }
+    }
 
-        quadTree?.show(graphics)
-        val x = 495//Random.nextInt(width)
-        val y = 433//Random.nextInt(height)
+    override fun draw() {
+        quadTree?.reset()
+        background(0)
+
+        val x = mouseX - 400//495//Random.nextInt(width)
+        val y = mouseY - 200//544//Random.nextInt(height)
         val w = 800//Random.nextInt(width-x)
         val h = 400//Random.nextInt(height-y)
-        val inside =  quadTree?.query(Rectangle(x, y, w, h)) ?: emptyList()
+        val inside = quadTree?.query(Rectangle(x, y, w, h)) ?: emptyList()
 
+        quadTree?.show(graphics)
         strokeWeight(4f)
         stroke(PINK.rgb)
         noFill()
@@ -39,18 +40,16 @@ class QuadTreeApp : PApplet() {
             fill(PINK.rgb)
             point(it.x.toFloat(), it.y.toFloat())
         }
-
-        noLoop()
     }
-
 }
 
 private val colors = arrayOf(RED.rgb, BLUE.rgb, GREEN.rgb, YELLOW.rgb)
 private val quadrants: Array<Point> = arrayOf(Point(0, 0), Point(1, 0), Point(0, 1), Point(1, 1))
 
-class QuadTree(val rect: Rectangle, val capacity: Int, val color: Int = 255) {
+class QuadTree(val rect: Rectangle, val capacity: Int, var color: Int = 255) {
     private val children: Lazy<List<QuadTree>> = lazy { divide() }
     private val points: MutableList<Point> = mutableListOf()
+    var searched = false
     fun divide(): List<QuadTree> {
         return quadrants.mapIndexed { i, it ->
             QuadTree(
@@ -64,22 +63,28 @@ class QuadTree(val rect: Rectangle, val capacity: Int, val color: Int = 255) {
         }
     }
 
-    fun insert(point: Point): Boolean {
-        if (!point.inRect(rect)) return false
+    fun insert(point: Point) {
+        if (!point.inRect(rect)) return
 
         if (points.size < capacity) {
             points.add(point)
-            return true
+            return
         }
-        return children.value.map { it.insert(point) }.any { true }
+        children.value.forEach { it.insert(point) }
+        return
     }
 
     fun query(other: Rectangle): List<Point> {
         if (!rect.intersects(other)) return emptyList()
+        searched = true
         val found = mutableListOf<Point>()
         points.filterTo(found) { it.inRect(other) }
         if (children.isInitialized()) children.value.forEach { found.addAll(it.query(other)) }
         return found
+    }
+    fun reset() {
+        searched = false
+        if (children.isInitialized()) children.value.forEach { it.reset() }
     }
 
     private fun Point.inRect(rect: Rectangle): Boolean {
@@ -92,7 +97,11 @@ class QuadTree(val rect: Rectangle, val capacity: Int, val color: Int = 255) {
 
     fun show(graphics: PGraphics) {
         with(graphics) {
-            stroke(color)
+            if (searched) {
+                stroke(CYAN.rgb)
+            } else {
+                stroke(color)
+            }
             strokeWeight(1f)
             noFill()
             rect(rect.x.toFloat(), rect.y.toFloat(), rect.width.toFloat(), rect.height.toFloat())
