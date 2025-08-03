@@ -6,7 +6,7 @@ import java.awt.Color.*
 import kotlin.random.Random
 
 class QuadTreeApp : PApplet() {
-    private var quadTree: QuadTree? = null
+    private var quadTree: QuadTree<Point>? = null
 
     override fun settings() {
         size(1600, 1200)
@@ -14,7 +14,7 @@ class QuadTreeApp : PApplet() {
 
     override fun setup() {
         background(255)
-        quadTree = QuadTree(Rectangle(0, 0, width, height), 4)
+        quadTree = QuadTree(Rectangle(0, 0, width, height), 4) { it }
         (0..500).forEach { _ ->
             quadTree?.insert(Point(Random.nextInt(width), Random.nextInt(height)))
         }
@@ -46,11 +46,17 @@ class QuadTreeApp : PApplet() {
 private val colors = arrayOf(RED.rgb, BLUE.rgb, GREEN.rgb, YELLOW.rgb)
 private val quadrants: Array<Point> = arrayOf(Point(0, 0), Point(1, 0), Point(0, 1), Point(1, 1))
 
-class QuadTree(val rect: Rectangle, val capacity: Int, val color: Int = 255) {
-    private val children: Lazy<List<QuadTree>> = lazy { divide() }
-    private val points: MutableList<Point> = mutableListOf()
+class QuadTree<T>(
+    val rect: Rectangle, 
+    val capacity: Int, 
+    val color: Int = 255,
+    private val pointResolver: (T) -> Point
+) {
+    private val children: Lazy<List<QuadTree<T>>> = lazy { divide() }
+    private val items: MutableList<T> = mutableListOf()
     var searched = false
-    fun divide(): List<QuadTree> {
+
+    fun divide(): List<QuadTree<T>> {
         return quadrants.mapIndexed { i, it ->
             QuadTree(
                 Rectangle(
@@ -58,41 +64,52 @@ class QuadTree(val rect: Rectangle, val capacity: Int, val color: Int = 255) {
                     rect.y + it.y * rect.height / 2,
                     rect.width / 2,
                     rect.height / 2
-                ), capacity, colors[i]
+                ), 
+                capacity, 
+                colors[i],
+                pointResolver
             )
         }
     }
 
-    fun insert(point: Point) {
+    fun insert(item: T) {
+        val point = pointResolver(item)
         if (!point.inRect(rect)) return
 
-        if (points.size < capacity) {
-            points.add(point)
+        if (items.size < capacity) {
+            items.add(item)
             return
         }
-        children.value.forEach { it.insert(point) }
+        children.value.forEach { it.insert(item) }
         return
     }
 
-    fun query(other: Rectangle): List<Point> {
+    fun query(other: Rectangle): List<T> {
         if (!rect.intersects(other)) return emptyList()
         searched = true
-        val found = mutableListOf<Point>()
-        points.filterTo(found) { it.inRect(other) }
+        val found = mutableListOf<T>()
+        items.filterTo(found) { pointResolver(it).inRect(other) }
         if (children.isInitialized()) children.value.forEach { found.addAll(it.query(other)) }
         return found
     }
+
     fun reset() {
         searched = false
         if (children.isInitialized()) children.value.forEach { it.reset() }
     }
 
     private fun Point.inRect(rect: Rectangle): Boolean {
-        return this.x >= rect.x && this.x <= rect.x + rect.width && this.y >= rect.y && this.y <= rect.y + rect.height
+        return this.x >= rect.x && 
+               this.x <= rect.x + rect.width && 
+               this.y >= rect.y && 
+               this.y <= rect.y + rect.height
     }
 
     fun Rectangle.intersects(other: Rectangle): Boolean {
-        return this.x < other.x + other.width && this.x + this.width > other.x && this.y < other.y + other.height && this.y + this.height > other.y
+        return this.x < other.x + other.width && 
+               this.x + this.width > other.x && 
+               this.y < other.y + other.height && 
+               this.y + this.height > other.y
     }
 
     fun show(graphics: PGraphics) {
@@ -106,15 +123,14 @@ class QuadTree(val rect: Rectangle, val capacity: Int, val color: Int = 255) {
             noFill()
             rect(rect.x.toFloat(), rect.y.toFloat(), rect.width.toFloat(), rect.height.toFloat())
             if (children.isInitialized()) children.value.forEach { it.show(graphics) }
-            points.forEach {
+            items.forEach {
                 strokeWeight(10f)
                 fill(color)
-                point(it.x.toFloat(), it.y.toFloat())
+                val point = pointResolver(it)
+                point(point.x.toFloat(), point.y.toFloat())
             }
         }
     }
-
-
 }
 
 data class Rectangle(val x: Int, val y: Int, val width: Int, val height: Int)
