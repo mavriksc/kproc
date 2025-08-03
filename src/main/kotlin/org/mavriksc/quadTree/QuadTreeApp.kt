@@ -5,6 +5,9 @@ import processing.core.PGraphics
 import java.awt.Color.*
 import kotlin.random.Random
 
+//it seems like something isn't quite right will highlight points in a square not touching any parent
+//out put all tree bounds and points contained in each.
+// i think it's just a problem with the multi coloring and the search highlighting and not the actual search 🤷‍♂️
 class QuadTreeApp : PApplet() {
     private var quadTree: QuadTree<Point>? = null
 
@@ -15,10 +18,11 @@ class QuadTreeApp : PApplet() {
     override fun setup() {
         //background(255)
         quadTree = QuadTree(Rectangle(0, 0, width, height), 4,colors[0]) { it }
-        (0..1000).forEach { _ ->
+        (0..100).forEach { _ ->
             quadTree?.insert(Point(Random.nextInt(width), Random.nextInt(height)))
         }
         println(quadTree?.colorDistribution())
+        println(quadTree?.toString())
     }
 
     override fun draw() {
@@ -124,6 +128,10 @@ class QuadTree<T>(
         return map
     }
 
+    override fun toString(): String {
+        return "QuadTree(color=$color,\n rect=$rect,\n  items=\n${items.map { pointResolver(it)}.joinToString("\n")},\n children=${if (children.isInitialized()) children.value.joinToString("\n", "\n", "\n") { it.toString() } else ""})"
+    }
+
     fun show(graphics: PGraphics) {
         with(graphics) {
             if (searched) {
@@ -137,7 +145,7 @@ class QuadTree<T>(
             if (children.isInitialized()) children.value.forEach { it.show(graphics) }
             items.forEach {
                 strokeWeight(10f)
-                fill(color)
+                //fill(color)
                 val point = pointResolver(it)
                 point(point.x.toFloat(), point.y.toFloat())
             }
