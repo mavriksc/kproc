@@ -5,9 +5,8 @@ import processing.core.PGraphics
 import java.awt.Color.*
 import kotlin.random.Random
 
-//it seems like something isn't quite right will highlight points in a square not touching any parent
-//out put all tree bounds and points contained in each.
-// i think it's just a problem with the multi coloring and the search highlighting and not the actual search 🤷‍♂️
+// the bug was just with the coloring and that we're coloring all children ending with yellow... and then coming back
+// and coloring the parent's points with yellow.
 class QuadTreeApp : PApplet() {
     private var quadTree: QuadTree<Point>? = null
 
@@ -18,21 +17,21 @@ class QuadTreeApp : PApplet() {
     override fun setup() {
         //background(255)
         quadTree = QuadTree(Rectangle(0, 0, width, height), 4,colors[0]) { it }
-        (0..100).forEach { _ ->
+        (0..1000).forEach { _ ->
             quadTree?.insert(Point(Random.nextInt(width), Random.nextInt(height)))
         }
-        println(quadTree?.colorDistribution())
-        println(quadTree?.toString())
+//        println(quadTree?.colorDistribution())
+//        println(quadTree?.toString())
     }
 
     override fun draw() {
         quadTree?.reset()
         background(0)
 
-        val x = mouseX - 400//495//Random.nextInt(width)
-        val y = mouseY - 200//544//Random.nextInt(height)
-        val w = 800//Random.nextInt(width-x)
-        val h = 400//Random.nextInt(height-y)
+        val x = mouseX - 100//495//Random.nextInt(width)
+        val y = mouseY - 100//544//Random.nextInt(height)
+        val w = 200//Random.nextInt(width-x)
+        val h = 200//Random.nextInt(height-y)
         val inside = quadTree?.query(Rectangle(x, y, w, h)) ?: emptyList()
 
         quadTree?.show(graphics)
@@ -142,13 +141,13 @@ class QuadTree<T>(
             strokeWeight(1f)
             noFill()
             rect(rect.x.toFloat(), rect.y.toFloat(), rect.width.toFloat(), rect.height.toFloat())
-            if (children.isInitialized()) children.value.forEach { it.show(graphics) }
             items.forEach {
                 strokeWeight(10f)
-                //fill(color)
+                fill(color)
                 val point = pointResolver(it)
                 point(point.x.toFloat(), point.y.toFloat())
             }
+            if (children.isInitialized()) children.value.forEach { it.show(graphics) }
         }
     }
 }
