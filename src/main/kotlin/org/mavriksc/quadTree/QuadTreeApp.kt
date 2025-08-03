@@ -13,7 +13,7 @@ class QuadTreeApp : PApplet() {
     }
 
     override fun setup() {
-        background(255)
+        //background(255)
         quadTree = QuadTree(Rectangle(0, 0, width, height), 4,colors[0]) { it }
         (0..1000).forEach { _ ->
             quadTree?.insert(Point(Random.nextInt(width), Random.nextInt(height)))
@@ -61,8 +61,8 @@ class QuadTree<T>(
         return quadrants.mapIndexed { i, it ->
             QuadTree(
                 Rectangle(
-                    rect.x + it.x * (rect.width / 2 + 1),
-                    rect.y + it.y * (rect.height / 2 + 1),
+                    rect.x + it.x * rect.width / 2,
+                    rect.y + it.y * rect.height / 2,
                     rect.width / 2,
                     rect.height / 2
                 ),
