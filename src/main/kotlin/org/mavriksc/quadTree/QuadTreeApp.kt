@@ -46,7 +46,7 @@ class QuadTreeApp : PApplet() {
 private val colors = arrayOf(RED.rgb, BLUE.rgb, GREEN.rgb, YELLOW.rgb)
 private val quadrants: Array<Point> = arrayOf(Point(0, 0), Point(1, 0), Point(0, 1), Point(1, 1))
 
-class QuadTree(val rect: Rectangle, val capacity: Int, var color: Int = 255) {
+class QuadTree(val rect: Rectangle, val capacity: Int, val color: Int = 255) {
     private val children: Lazy<List<QuadTree>> = lazy { divide() }
     private val points: MutableList<Point> = mutableListOf()
     var searched = false
