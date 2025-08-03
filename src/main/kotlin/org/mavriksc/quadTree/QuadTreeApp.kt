@@ -7,6 +7,9 @@ import kotlin.random.Random
 
 // the bug was just with the coloring and that we're coloring all children ending with yellow... and then coming back
 // and coloring the parent's points with yellow.
+
+fun main() = PApplet.main("org.mavriksc.quadTree.QuadTreeApp")
+
 class QuadTreeApp : PApplet() {
     private var quadTree: QuadTree<Point>? = null
 
@@ -16,8 +19,8 @@ class QuadTreeApp : PApplet() {
 
     override fun setup() {
         //background(255)
-        quadTree = QuadTree(Rectangle(0, 0, width, height), 4,colors[0]) { it }
-        (0..1000).forEach { _ ->
+        quadTree = QuadTree(Rectangle(0, 0, width, height), 4, colors[0]) { it }
+        (0..10000).forEach { _ ->
             quadTree?.insert(Point(Random.nextInt(width), Random.nextInt(height)))
         }
 //        println(quadTree?.colorDistribution())
@@ -51,10 +54,7 @@ private val colors = arrayOf(RED.rgb, BLUE.rgb, GREEN.rgb, YELLOW.rgb)
 private val quadrants: Array<Point> = arrayOf(Point(0, 0), Point(1, 0), Point(0, 1), Point(1, 1))
 
 class QuadTree<T>(
-    val rect: Rectangle,
-    val capacity: Int,
-    val color: Int = 255,
-    private val pointResolver: (T) -> Point
+    val rect: Rectangle, val capacity: Int, val color: Int = 255, private val pointResolver: (T) -> Point
 ) {
     private val children: Lazy<List<QuadTree<T>>> = lazy { divide() }
     private val items: MutableList<T> = mutableListOf()
@@ -64,14 +64,8 @@ class QuadTree<T>(
         return quadrants.mapIndexed { i, it ->
             QuadTree(
                 Rectangle(
-                    rect.x + it.x * rect.width / 2,
-                    rect.y + it.y * rect.height / 2,
-                    rect.width / 2,
-                    rect.height / 2
-                ),
-                capacity,
-                colors[i],
-                pointResolver
+                    rect.x + it.x * rect.width / 2, rect.y + it.y * rect.height / 2, rect.width / 2, rect.height / 2
+                ), capacity, colors[i], pointResolver
             )
         }
     }
@@ -103,21 +97,15 @@ class QuadTree<T>(
     }
 
     private fun Point.inRect(rect: Rectangle): Boolean {
-        return this.x >= rect.x &&
-                this.x <= rect.x + rect.width &&
-                this.y >= rect.y &&
-                this.y <= rect.y + rect.height
+        return this.x >= rect.x && this.x <= rect.x + rect.width && this.y >= rect.y && this.y <= rect.y + rect.height
     }
 
     fun Rectangle.intersects(other: Rectangle): Boolean {
-        return this.x < other.x + other.width &&
-                this.x + this.width > other.x &&
-                this.y < other.y + other.height &&
-                this.y + this.height > other.y
+        return this.x < other.x + other.width && this.x + this.width > other.x && this.y < other.y + other.height && this.y + this.height > other.y
     }
 
-    fun colorDistribution():Map<Int,Int>{
-        val map = mutableMapOf<Int,Int>()
+    fun colorDistribution(): Map<Int, Int> {
+        val map = mutableMapOf<Int, Int>()
         map[color] = items.size
         if (children.isInitialized()) children.value.forEach { child ->
             child.colorDistribution().forEach { (color, count) ->
@@ -128,7 +116,13 @@ class QuadTree<T>(
     }
 
     override fun toString(): String {
-        return "QuadTree(color=$color,\n rect=$rect,\n  items=\n${items.map { pointResolver(it)}.joinToString("\n")},\n children=${if (children.isInitialized()) children.value.joinToString("\n", "\n", "\n") { it.toString() } else ""})"
+        return "QuadTree(color=$color,\n rect=$rect,\n  items=\n${
+            items.map { pointResolver(it) }.joinToString("\n")
+        },\n children=${
+            if (children.isInitialized()) children.value.joinToString(
+                "\n", "\n", "\n"
+            ) { it.toString() } else ""
+        })"
     }
 
     fun show(graphics: PGraphics) {
@@ -153,7 +147,4 @@ class QuadTree<T>(
 }
 
 data class Rectangle(val x: Int, val y: Int, val width: Int, val height: Int)
-data class Point(val x: Int, val y: Int)
-
-
-fun main() = PApplet.main("org.mavriksc.quadTree.QuadTreeApp")
+data class Point(var x: Int, var y: Int)
