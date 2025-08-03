@@ -14,10 +14,11 @@ class QuadTreeApp : PApplet() {
 
     override fun setup() {
         background(255)
-        quadTree = QuadTree(Rectangle(0, 0, width, height), 4) { it }
-        (0..500).forEach { _ ->
+        quadTree = QuadTree(Rectangle(0, 0, width, height), 4,colors[0]) { it }
+        (0..1000).forEach { _ ->
             quadTree?.insert(Point(Random.nextInt(width), Random.nextInt(height)))
         }
+        println(quadTree?.colorDistribution())
     }
 
     override fun draw() {
@@ -47,8 +48,8 @@ private val colors = arrayOf(RED.rgb, BLUE.rgb, GREEN.rgb, YELLOW.rgb)
 private val quadrants: Array<Point> = arrayOf(Point(0, 0), Point(1, 0), Point(0, 1), Point(1, 1))
 
 class QuadTree<T>(
-    val rect: Rectangle, 
-    val capacity: Int, 
+    val rect: Rectangle,
+    val capacity: Int,
     val color: Int = 255,
     private val pointResolver: (T) -> Point
 ) {
@@ -60,12 +61,12 @@ class QuadTree<T>(
         return quadrants.mapIndexed { i, it ->
             QuadTree(
                 Rectangle(
-                    rect.x + it.x * rect.width / 2,
-                    rect.y + it.y * rect.height / 2,
+                    rect.x + it.x * (rect.width / 2 + 1),
+                    rect.y + it.y * (rect.height / 2 + 1),
                     rect.width / 2,
                     rect.height / 2
-                ), 
-                capacity, 
+                ),
+                capacity,
                 colors[i],
                 pointResolver
             )
@@ -99,17 +100,28 @@ class QuadTree<T>(
     }
 
     private fun Point.inRect(rect: Rectangle): Boolean {
-        return this.x >= rect.x && 
-               this.x <= rect.x + rect.width && 
-               this.y >= rect.y && 
-               this.y <= rect.y + rect.height
+        return this.x >= rect.x &&
+                this.x <= rect.x + rect.width &&
+                this.y >= rect.y &&
+                this.y <= rect.y + rect.height
     }
 
     fun Rectangle.intersects(other: Rectangle): Boolean {
-        return this.x < other.x + other.width && 
-               this.x + this.width > other.x && 
-               this.y < other.y + other.height && 
-               this.y + this.height > other.y
+        return this.x < other.x + other.width &&
+                this.x + this.width > other.x &&
+                this.y < other.y + other.height &&
+                this.y + this.height > other.y
+    }
+
+    fun colorDistribution():Map<Int,Int>{
+        val map = mutableMapOf<Int,Int>()
+        map[color] = items.size
+        if (children.isInitialized()) children.value.forEach { child ->
+            child.colorDistribution().forEach { (color, count) ->
+                map[color] = (map[color] ?: 0) + count
+            }
+        }
+        return map
     }
 
     fun show(graphics: PGraphics) {
