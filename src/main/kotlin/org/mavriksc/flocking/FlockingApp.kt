@@ -22,7 +22,7 @@ class FlockingApp : PApplet() {
 
     override fun setup() {
         background(255)
-        (0..200).forEach { _ ->
+        (0..50).forEach { _ ->
             boids.add(
                 Boid(
                     arrayOf(Random().nextFloat(1600f), Random().nextFloat(1200f)),
@@ -35,7 +35,7 @@ class FlockingApp : PApplet() {
 
     override fun draw() {
         background(0)
-        val quadTree = QuadTree<Boid>(Rectangle(0, 0, width, height), 4) {
+        val quadTree = QuadTree<Boid>(Rectangle(0, 0, width, height), 2) {
             Point(
                 it.position[0].toInt(),
                 it.position[1].toInt()
@@ -43,11 +43,13 @@ class FlockingApp : PApplet() {
         }
         boids.forEach { quadTree.insert(it) }
         boids.forEach { b ->
-            val close = quadTree.query(Rectangle(b.position[0].toInt() - 70, b.position[1].toInt() - 70, 140, 140)).filter { it != b }
+            val close = quadTree.query(Rectangle(b.position[0].toInt() - 70, b.position[1].toInt() - 70, 140, 140))
+                .filter { it != b }
             b.update(close, width, height)
+            //quadTree.show(graphics)
             b.show(graphics)
         }
-
+        //println(frameRate)
     }
 }
 
