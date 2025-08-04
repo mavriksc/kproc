@@ -12,7 +12,6 @@ import kotlin.math.sqrt
 
 fun main() = PApplet.main("org.mavriksc.flocking.FlockingApp")
 
-// things are pretty close but there is something wrong with math that causes them to all end up going top left
 class FlockingApp : PApplet() {
     //val qt = QuadTree<Boid>(Rectangle(0, 0, width, height), 4,RED.rgb) { it.position }
     val boids = mutableListOf<Boid>()
