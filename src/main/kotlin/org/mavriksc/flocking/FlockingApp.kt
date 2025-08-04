@@ -11,6 +11,7 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 fun main() = PApplet.main("org.mavriksc.flocking.FlockingApp")
+
 // things are pretty close but there is something wrong with math that causes them to all end up going top left
 class FlockingApp : PApplet() {
     //val qt = QuadTree<Boid>(Rectangle(0, 0, width, height), 4,RED.rgb) { it.position }
@@ -21,7 +22,7 @@ class FlockingApp : PApplet() {
 
     override fun setup() {
         background(255)
-        (0..10000).forEach { _ ->
+        (0..200).forEach { _ ->
             boids.add(
                 Boid(
                     arrayOf(Random().nextFloat(1600f), Random().nextFloat(1200f)),
@@ -42,12 +43,7 @@ class FlockingApp : PApplet() {
         }
         boids.forEach { quadTree.insert(it) }
         boids.forEach { b ->
-            val close = boids.filter { it != b }.filter {
-                val diff = arrayOf(0f, 0f)
-                diff.add(b.position)
-                diff.sub(it.position)
-                diff.magSq() < 4000
-            }
+            val close = quadTree.query(Rectangle(b.position[0].toInt() - 70, b.position[1].toInt() - 70, 140, 140)).filter { it != b }
             b.update(close, width, height)
             b.show(graphics)
         }
@@ -136,7 +132,7 @@ class Boid(
 
     fun show(graphics: PGraphics) {
         with(graphics) {
-            strokeWeight(16f)
+            strokeWeight(5f)
             stroke(255)
             point(position[0], position[1])
         }
