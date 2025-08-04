@@ -1,5 +1,8 @@
 package org.mavriksc.flocking
 
+import org.mavriksc.quadTree.Point
+import org.mavriksc.quadTree.QuadTree
+import org.mavriksc.quadTree.Rectangle
 import processing.core.PApplet
 import processing.core.PGraphics
 import java.util.*
@@ -8,7 +11,7 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 fun main() = PApplet.main("org.mavriksc.flocking.FlockingApp")
-
+// things are pretty close but there is something wrong with math that causes them to all end up going top left
 class FlockingApp : PApplet() {
     //val qt = QuadTree<Boid>(Rectangle(0, 0, width, height), 4,RED.rgb) { it.position }
     val boids = mutableListOf<Boid>()
@@ -18,12 +21,10 @@ class FlockingApp : PApplet() {
 
     override fun setup() {
         background(255)
-        (0..100).forEach { _ ->
-            val position = rand2DArray()
-            position.scale(Random().nextFloat(400f))
+        (0..10000).forEach { _ ->
             boids.add(
                 Boid(
-                    position,
+                    arrayOf(Random().nextFloat(1600f), Random().nextFloat(1200f)),
                     rand2DArray(),
                     rand2DArray()
                 )
@@ -33,9 +34,22 @@ class FlockingApp : PApplet() {
 
     override fun draw() {
         background(0)
-        boids.forEach {
-            it.update(boids, width, height)
-            it.show(graphics)
+        val quadTree = QuadTree<Boid>(Rectangle(0, 0, width, height), 4) {
+            Point(
+                it.position[0].toInt(),
+                it.position[1].toInt()
+            )
+        }
+        boids.forEach { quadTree.insert(it) }
+        boids.forEach { b ->
+            val close = boids.filter { it != b }.filter {
+                val diff = arrayOf(0f, 0f)
+                diff.add(b.position)
+                diff.sub(it.position)
+                diff.magSq() < 4000
+            }
+            b.update(close, width, height)
+            b.show(graphics)
         }
 
     }
@@ -47,14 +61,23 @@ class Boid(
     val velocity: Array<Float> = arrayOf(0f, 0f),
     val acceleration: Array<Float> = arrayOf(0f, 0f),
 ) {
-    val maxSpeed = 2f
-    val maxForce = 0.1f
-    val minSpeed = 0.1f
+    val maxSpeed = 5f
+    val maxForce = 0.3f
+    val minSpeed = 1f
+    val alignStrength = 0.7f
+    val cohesionStrength = 0.5f
+    val separationStrength = 5f
 
     fun update(others: List<Boid>, width: Int, height: Int) {
-        acceleration.add(cohesion(others))
-        acceleration.add(align(others))
-        acceleration.add(separation(others))
+        val alignment = align(others)
+        val separation = separation(others)
+        val cohesion = cohesion(others)
+        alignment.scale(alignStrength)
+        separation.scale(separationStrength)
+        cohesion.scale(cohesionStrength)
+        acceleration.add(cohesion)
+        acceleration.add(alignment)
+        acceleration.add(separation)
         val clippedAcceleration = min(maxForce, acceleration.mag())
         acceleration.scale(clippedAcceleration / acceleration.mag())
         velocity.add(acceleration)
@@ -77,29 +100,30 @@ class Boid(
 
     }
 
-    fun align(boids: List<Boid>): Array<Float> {
-        val steering = boids.fold(arrayOf(0f, 0f)) { acc, boid ->
+    fun align(others: List<Boid>): Array<Float> {
+        if (others.isEmpty()) return arrayOf(0f, 0f)
+        val steering = others.fold(arrayOf(0f, 0f)) { acc, boid ->
             acc.add(boid.velocity)
             acc
         }
-        steering.sub(this.velocity)
-        steering.scale(1 / boids.size.toFloat())
+        steering.scale(1 / others.size.toFloat())
         return steering
     }
 
-    fun cohesion(boids: List<Boid>): Array<Float> {
-        val steering = boids.fold(arrayOf(0f, 0f)) { acc, boid ->
+    fun cohesion(others: List<Boid>): Array<Float> {
+        if (others.isEmpty()) return arrayOf(0f, 0f)
+        val steering = others.fold(arrayOf(0f, 0f)) { acc, boid ->
             acc.add(boid.position)
             acc
         }
-        steering.sub(this.position)
-        steering.scale(1 / boids.size.toFloat())
+        steering.scale(1 / others.size.toFloat())
         steering.sub(this.position)
         return steering
     }
 
-    fun separation(boids: List<Boid>): Array<Float> {
-        val steering = boids.filter { it != this }.fold(arrayOf(0f, 0f)) { acc, boid ->
+    fun separation(others: List<Boid>): Array<Float> {
+        if (others.isEmpty()) return arrayOf(0f, 0f)
+        val steering = others.filter { it != this }.fold(arrayOf(0f, 0f)) { acc, boid ->
             val separation = arrayOf(0f, 0f)
             separation.add(this.position)
             separation.sub(boid.position)
