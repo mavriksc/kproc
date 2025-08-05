@@ -4,11 +4,10 @@ import org.mavriksc.quadTree.Point
 import org.mavriksc.quadTree.QuadTree
 import org.mavriksc.quadTree.Rectangle
 import processing.core.PApplet
+import processing.core.PConstants.CLOSE
 import processing.core.PGraphics
 import java.util.*
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.sqrt
+import kotlin.math.*
 
 // TODO parallelize will also need to batch update instead of updating and calculating based on that new value.
 
@@ -17,13 +16,13 @@ fun main() = PApplet.main("org.mavriksc.flocking.FlockingApp")
 class FlockingApp : PApplet() {
     val boids = mutableListOf<Boid>()
     override fun settings() {
-        //size(2000, 1300)
-        fullScreen()
+        size(2000, 1300)
+        //fullScreen()
     }
 
     override fun setup() {
         background(255)
-        (0..2000).forEach { _ ->
+        (0..500).forEach { _ ->
             boids.add(
                 Boid(
                     arrayOf(Random().nextFloat(width.toFloat()), Random().nextFloat(height.toFloat())),
@@ -36,7 +35,7 @@ class FlockingApp : PApplet() {
 
     override fun draw() {
         background(0)
-        val quadTree = QuadTree<Boid>(Rectangle(0, 0, width, height), 2) {
+        val quadTree = QuadTree<Boid>(Rectangle(0, 0, width, height), 5) {
             Point(
                 it.position[0].toInt(),
                 it.position[1].toInt()
@@ -146,9 +145,29 @@ class Boid(
 
     fun show(graphics: PGraphics) {
         with(graphics) {
-            strokeWeight(4f)
+            strokeWeight(1f)
             stroke(255)
-            point(position[0], position[1])
+            fill(255)
+
+            val direction = atan2(velocity[1], velocity[0])
+            val x = position[0]
+            val y = position[1]
+
+            val r = 10f
+            val base = 3f
+            beginShape()
+            vertex(x + r * cos(direction), y + r * sin(direction))
+            vertex(
+                (x + base * cos(direction - PI / 2)).toFloat(),
+                (y + base * sin(direction - PI / 2)).toFloat()
+            )
+            vertex(
+                (x + base * cos(direction + PI / 2)).toFloat(),
+                (y + base * sin(direction + PI / 2)).toFloat()
+            )
+            endShape(CLOSE)
+
+
         }
     }
 }
