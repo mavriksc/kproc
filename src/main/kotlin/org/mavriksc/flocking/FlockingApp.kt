@@ -6,6 +6,7 @@ import org.mavriksc.quadTree.Rectangle
 import processing.core.PApplet
 import processing.core.PConstants.CLOSE
 import processing.core.PGraphics
+import java.awt.Color.RED
 import java.util.*
 import kotlin.math.*
 
@@ -13,16 +14,19 @@ import kotlin.math.*
 
 fun main() = PApplet.main("org.mavriksc.flocking.FlockingApp")
 
+private const val visionSize = 100f
+private const val visionForward = .5f
+
 class FlockingApp : PApplet() {
     val boids = mutableListOf<Boid>()
     override fun settings() {
-        size(2000, 1300)
-        //fullScreen()
+        //size(2000, 1300)
+        fullScreen()
     }
 
     override fun setup() {
         background(255)
-        (0..500).forEach { _ ->
+        (0..100).forEach { _ ->
             boids.add(
                 Boid(
                     arrayOf(Random().nextFloat(width.toFloat()), Random().nextFloat(height.toFloat())),
@@ -45,10 +49,17 @@ class FlockingApp : PApplet() {
         boids.parallelStream().forEach { b ->
             // forward looking instead of round looking
             val vision = arrayOf(b.velocity[0], b.velocity[1])
-            vision.scale(50f / vision.mag())
+            vision.scale((visionSize * visionForward) / vision.mag())
             vision.add(b.position)
-            vision.sub(arrayOf(70f, 70f))
-            val close = quadTree.query(Rectangle(vision[0].toInt(), vision[1].toInt(), 140, 140))
+            vision.sub(arrayOf(visionSize, visionSize))
+            val close = quadTree.query(
+                Rectangle(
+                    vision[0].toInt(),
+                    vision[1].toInt(),
+                    (visionSize * 2).toInt(),
+                    (visionSize * 2).toInt()
+                )
+            )
                 .filter { it != b }
             b.calcForces(close)
         }
@@ -164,6 +175,14 @@ class Boid(
                 (y + base * sin(direction + PI / 2)).toFloat()
             )
             endShape(CLOSE)
+
+            val vision = arrayOf(velocity[0], velocity[1])
+            vision.scale((visionSize * visionForward) / vision.mag())
+            vision.add(position)
+            noFill()
+            stroke(RED.rgb)
+            strokeWeight(1f)
+            ellipse(vision[0], vision[1], visionSize * 2, visionSize * 2)
         }
     }
 }
