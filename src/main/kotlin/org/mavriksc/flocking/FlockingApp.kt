@@ -80,7 +80,6 @@ class Boid(
         velocity.scale(clippedVelocity / velocity.mag())
         position.add(velocity)
         wrap(width, height)
-
     }
 
     fun calcForces(others: List<Boid>) {
@@ -106,7 +105,6 @@ class Boid(
             position[1] < 0 -> position[1] += height.toFloat()
             position[1] > height.toFloat() -> position[1] -= height.toFloat()
         }
-
     }
 
     fun align(others: List<Boid>): Array<Float> {
@@ -166,8 +164,6 @@ class Boid(
                 (y + base * sin(direction + PI / 2)).toFloat()
             )
             endShape(CLOSE)
-
-
         }
     }
 }
