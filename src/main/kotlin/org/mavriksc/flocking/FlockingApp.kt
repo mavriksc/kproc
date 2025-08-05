@@ -10,21 +10,23 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
+// TODO parallelize will also need to batch update instead of updating and calculating based on that new value.
+
 fun main() = PApplet.main("org.mavriksc.flocking.FlockingApp")
 
 class FlockingApp : PApplet() {
-    //val qt = QuadTree<Boid>(Rectangle(0, 0, width, height), 4,RED.rgb) { it.position }
     val boids = mutableListOf<Boid>()
     override fun settings() {
-        size(1600, 1200)
+        //size(2000, 1300)
+        fullScreen()
     }
 
     override fun setup() {
         background(255)
-        (0..50).forEach { _ ->
+        (0..2000).forEach { _ ->
             boids.add(
                 Boid(
-                    arrayOf(Random().nextFloat(1600f), Random().nextFloat(1200f)),
+                    arrayOf(Random().nextFloat(width.toFloat()), Random().nextFloat(height.toFloat())),
                     rand2DArray(),
                     rand2DArray()
                 )
@@ -41,12 +43,20 @@ class FlockingApp : PApplet() {
             )
         }
         boids.forEach { quadTree.insert(it) }
-        boids.forEach { b ->
-            val close = quadTree.query(Rectangle(b.position[0].toInt() - 70, b.position[1].toInt() - 70, 140, 140))
+        boids.parallelStream().forEach { b ->
+            // forward looking instead of round looking
+            val vision = arrayOf(b.velocity[0], b.velocity[1])
+            vision.scale(50f / vision.mag())
+            vision.add(b.position)
+            vision.sub(arrayOf(70f, 70f))
+            val close = quadTree.query(Rectangle(vision[0].toInt(), vision[1].toInt(), 140, 140))
                 .filter { it != b }
-            b.update(close, width, height)
+            b.calcForces(close)
             //quadTree.show(graphics)
-            b.show(graphics)
+        }
+        boids.forEach {
+            it.update(width, height)
+            it.show(graphics)
         }
         //println(frameRate)
     }
@@ -58,14 +68,23 @@ class Boid(
     val velocity: Array<Float> = arrayOf(0f, 0f),
     val acceleration: Array<Float> = arrayOf(0f, 0f),
 ) {
-    val maxSpeed = 5f
-    val maxForce = 0.3f
+    val maxSpeed = 4f
+    val maxForce = 0.2f
     val minSpeed = 1f
     val alignStrength = 0.7f
     val cohesionStrength = 0.5f
-    val separationStrength = 5f
+    val separationStrength = 2.5f
 
-    fun update(others: List<Boid>, width: Int, height: Int) {
+    fun update(width: Int, height: Int) {
+        velocity.add(acceleration)
+        val clippedVelocity = min(maxSpeed, max(minSpeed, velocity.mag()))
+        velocity.scale(clippedVelocity / velocity.mag())
+        position.add(velocity)
+        wrap(width, height)
+
+    }
+
+    fun calcForces(others: List<Boid>) {
         val alignment = align(others)
         val separation = separation(others)
         val cohesion = cohesion(others)
@@ -77,12 +96,6 @@ class Boid(
         acceleration.add(separation)
         val clippedAcceleration = min(maxForce, acceleration.mag())
         acceleration.scale(clippedAcceleration / acceleration.mag())
-        velocity.add(acceleration)
-        val clippedVelocity = min(maxSpeed, max(minSpeed, velocity.mag()))
-        velocity.scale(clippedVelocity / velocity.mag())
-        position.add(velocity)
-        wrap(width, height)
-
     }
 
     fun wrap(width: Int, height: Int) {
@@ -120,7 +133,7 @@ class Boid(
 
     fun separation(others: List<Boid>): Array<Float> {
         if (others.isEmpty()) return arrayOf(0f, 0f)
-        val steering = others.filter { it != this }.fold(arrayOf(0f, 0f)) { acc, boid ->
+        val steering = others.fold(arrayOf(0f, 0f)) { acc, boid ->
             val separation = arrayOf(0f, 0f)
             separation.add(this.position)
             separation.sub(boid.position)
@@ -133,7 +146,7 @@ class Boid(
 
     fun show(graphics: PGraphics) {
         with(graphics) {
-            strokeWeight(5f)
+            strokeWeight(4f)
             stroke(255)
             point(position[0], position[1])
         }
