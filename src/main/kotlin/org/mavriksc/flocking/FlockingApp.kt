@@ -52,13 +52,13 @@ class FlockingApp : PApplet() {
             val close = quadTree.query(Rectangle(vision[0].toInt(), vision[1].toInt(), 140, 140))
                 .filter { it != b }
             b.calcForces(close)
-            //quadTree.show(graphics)
         }
         boids.forEach {
             it.update(width, height)
             it.show(graphics)
         }
         //println(frameRate)
+        //quadTree.show(graphics)
     }
 }
 
