@@ -10,12 +10,16 @@ import java.awt.Color.RED
 import java.util.*
 import kotlin.math.*
 
-// TODO parallelize will also need to batch update instead of updating and calculating based on that new value.
+//DONE: parallelize will also need to batch update instead of updating and calculating based on that new value.
+// is not faster until a very large number of boids is present.
+// TODO the one shot calculation of the forces seems off. create tests against the individual calculations and verify
 
 fun main() = PApplet.main("org.mavriksc.flocking.FlockingApp")
 
 private const val visionSize = 100f
-private const val visionForward = .5f
+private const val visionForward = 0.7f
+private const val drawVision = true
+private const val numBoids = 300
 
 class FlockingApp : PApplet() {
     val boids = mutableListOf<Boid>()
@@ -26,7 +30,7 @@ class FlockingApp : PApplet() {
 
     override fun setup() {
         background(255)
-        (0..100).forEach { _ ->
+        (0..numBoids).forEach { _ ->
             boids.add(
                 Boid(
                     arrayOf(Random().nextFloat(width.toFloat()), Random().nextFloat(height.toFloat())),
@@ -72,7 +76,6 @@ class FlockingApp : PApplet() {
     }
 }
 
-// we are going to pass a qt in the future to update and will make the list of others there.
 class Boid(
     val position: Array<Float>,
     val velocity: Array<Float> = arrayOf(0f, 0f),
@@ -80,10 +83,10 @@ class Boid(
 ) {
     val maxSpeed = 4f
     val maxForce = 0.2f
-    val minSpeed = 1f
-    val alignStrength = 0.7f
+    val minSpeed = 2f
+    val alignStrength = 1.7f
     val cohesionStrength = 0.5f
-    val separationStrength = 2.5f
+    val separationStrength = 4f
 
     fun update(width: Int, height: Int) {
         velocity.add(acceleration)
@@ -94,6 +97,7 @@ class Boid(
     }
 
     fun calcForces(others: List<Boid>) {
+        //val forces = allThree(others)
         val alignment = align(others)
         val separation = separation(others)
         val cohesion = cohesion(others)
@@ -116,6 +120,26 @@ class Boid(
             position[1] < 0 -> position[1] += height.toFloat()
             position[1] > height.toFloat() -> position[1] -= height.toFloat()
         }
+    }
+    fun allThree(others: List<Boid>): Array<Array<Float>>{
+        if (others.isEmpty()) return arrayOf(arrayOf(0f, 0f), arrayOf(0f, 0f), arrayOf(0f, 0f))
+        val forces = others.fold(
+            arrayOf(arrayOf(0f, 0f), arrayOf(0f, 0f), arrayOf(0f, 0f))
+        ) { acc, boid ->
+            acc[0].add(boid.velocity)
+            acc[1].add(boid.position)
+            val separation = arrayOf(0f, 0f)
+            separation.add(this.position)
+            separation.sub(boid.position)
+            separation.scale(1 / separation.mag())
+            acc[2].add(separation)
+            acc
+        }
+        forces[0].scale(1 / others.size.toFloat())
+        forces[1].scale(1 / others.size.toFloat())
+        forces[1].sub(this.position)
+        forces[2].scale(1 / others.size.toFloat())
+        return forces
     }
 
     fun align(others: List<Boid>): Array<Float> {
@@ -175,14 +199,16 @@ class Boid(
                 (y + base * sin(direction + PI / 2)).toFloat()
             )
             endShape(CLOSE)
+            if (drawVision) {
 
-            val vision = arrayOf(velocity[0], velocity[1])
-            vision.scale((visionSize * visionForward) / vision.mag())
-            vision.add(position)
-            noFill()
-            stroke(RED.rgb)
-            strokeWeight(1f)
-            ellipse(vision[0], vision[1], visionSize * 2, visionSize * 2)
+                val vision = arrayOf(velocity[0], velocity[1])
+                vision.scale((visionSize * visionForward) / vision.mag())
+                vision.add(position)
+                noFill()
+                stroke(RED.rgb)
+                strokeWeight(1f)
+                ellipse(vision[0], vision[1], visionSize * 2, visionSize * 2)
+            }
         }
     }
 }
