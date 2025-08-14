@@ -12,9 +12,10 @@ import kotlin.math.*
 
 //DONE: parallelize will also need to batch update instead of updating and calculating based on that new value.
 // is not faster until a very large number of boids is present.
-// TODO the one shot calculation of the forces seems off. create tests against the individual calculations and verify
+//  the one shot calculation of the forces seems off. create tests against the individual calculations and verify
+// created test and fixed the one shot calculation.
 
-fun main() = PApplet.main("org.mavriksc.flocking.FlockingApp")
+fun main() =  PApplet.main("org.mavriksc.flocking.FlockingApp")
 
 private const val visionSize = 100f
 private const val visionForward = 0.7f
@@ -97,15 +98,15 @@ class Boid(
     }
 
     fun calcForces(others: List<Boid>) {
-        //val forces = allThree(others)
-        val alignment = align(others)
-        val separation = separation(others)
-        val cohesion = cohesion(others)
+        val forces = allThree(others)
+        val alignment = forces[0]
+        val cohesion = forces[1]
+        val separation = forces[2]
         alignment.scale(alignStrength)
-        separation.scale(separationStrength)
         cohesion.scale(cohesionStrength)
-        acceleration.add(cohesion)
+        separation.scale(separationStrength)
         acceleration.add(alignment)
+        acceleration.add(cohesion)
         acceleration.add(separation)
         val clippedAcceleration = min(maxForce, acceleration.mag())
         acceleration.scale(clippedAcceleration / acceleration.mag())
@@ -121,7 +122,8 @@ class Boid(
             position[1] > height.toFloat() -> position[1] -= height.toFloat()
         }
     }
-    fun allThree(others: List<Boid>): Array<Array<Float>>{
+
+    fun allThree(others: List<Boid>): Array<Array<Float>> {
         if (others.isEmpty()) return arrayOf(arrayOf(0f, 0f), arrayOf(0f, 0f), arrayOf(0f, 0f))
         val forces = others.fold(
             arrayOf(arrayOf(0f, 0f), arrayOf(0f, 0f), arrayOf(0f, 0f))
@@ -138,7 +140,6 @@ class Boid(
         forces[0].scale(1 / others.size.toFloat())
         forces[1].scale(1 / others.size.toFloat())
         forces[1].sub(this.position)
-        forces[2].scale(1 / others.size.toFloat())
         return forces
     }
 
@@ -222,4 +223,92 @@ fun rand2DArray(): Array<Float> {
     val rand = arrayOf(Random().nextFloat(-1f, 1f), Random().nextFloat(-1f, 1f))
     rand.scale(1 / rand.mag())
     return rand
+}
+
+fun boidTestForceCalc() {
+    val h = 1600f
+    val w = 1600f
+    val boids = (0..numBoids).map { _ ->
+        Boid(
+            arrayOf(Random().nextFloat(w), Random().nextFloat(h)),
+            rand2DArray(),
+            rand2DArray()
+        )
+    }
+    (0..100).forEach { _ ->
+        val qt = QuadTree<Boid>(Rectangle(0, 0, w.toInt(), h.toInt()), 5) {
+            Point(
+                it.position[0].toInt(),
+                it.position[1].toInt()
+            )
+        }
+        boids.forEach { qt.insert(it) }
+        boids.parallelStream().forEach { b ->
+            // forward looking instead of round looking
+            val vision = arrayOf(b.velocity[0], b.velocity[1])
+            vision.scale((visionSize * visionForward) / vision.mag())
+            vision.add(b.position)
+            vision.sub(arrayOf(visionSize, visionSize))
+            val close = qt.query(
+                Rectangle(
+                    vision[0].toInt(),
+                    vision[1].toInt(),
+                    (visionSize * 2).toInt(),
+                    (visionSize * 2).toInt()
+                )
+            )
+                .filter { it != b }
+            b.calcForces(close)
+        }
+        boids.forEach { it.update(h.toInt(), w.toInt()) }
+    }
+    val qt = QuadTree<Boid>(Rectangle(0, 0, w.toInt(), h.toInt()), 5) {
+        Point(
+            it.position[0].toInt(),
+            it.position[1].toInt()
+        )
+    }
+    boids.forEach { qt.insert(it) }
+    val maxNeighborBoid = boids.maxBy { b ->
+        val vision = arrayOf(b.velocity[0], b.velocity[1])
+        vision.scale((visionSize * visionForward) / vision.mag())
+        vision.add(b.position)
+        vision.sub(arrayOf(visionSize, visionSize))
+        val close = qt.query(
+            Rectangle(
+                vision[0].toInt(),
+                vision[1].toInt(),
+                (visionSize * 2).toInt(),
+                (visionSize * 2).toInt()
+            )
+        )
+            .filter { it != b }
+        close.size
+    }
+    val vision = arrayOf(maxNeighborBoid.velocity[0], maxNeighborBoid.velocity[1])
+    vision.scale((visionSize * visionForward) / vision.mag())
+    vision.add(maxNeighborBoid.position)
+    vision.sub(arrayOf(visionSize, visionSize))
+    val close = qt.query(
+        Rectangle(
+            vision[0].toInt(),
+            vision[1].toInt(),
+            (visionSize * 2).toInt(),
+            (visionSize * 2).toInt()
+        )
+    )
+        .filter { it != maxNeighborBoid }
+
+
+    val allThree = maxNeighborBoid.allThree(close)
+    val alignment = maxNeighborBoid.align(close)
+    val separation = maxNeighborBoid.separation(close)
+    val cohesion = maxNeighborBoid.cohesion(close)
+    assert(allThree[0].contentEquals(alignment))
+    assert(allThree[1].contentEquals(separation))
+    assert(allThree[2].contentEquals(cohesion))
+    println("alignement:allthree: ${allThree[0].contentToString()} individual: ${alignment.contentToString()} ")
+    println("cohesion:allthree: ${allThree[1].contentToString()} individual: ${cohesion.contentToString()} ")
+    println("separation:allthree: ${allThree[2].contentToString()} individual: ${separation.contentToString()} ")
+
 }
