@@ -1,5 +1,6 @@
 .gradle
 build/
+build/universe-scale-frames/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
