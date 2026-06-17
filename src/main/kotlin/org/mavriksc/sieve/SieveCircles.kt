@@ -2,10 +2,7 @@ package org.mavriksc.sieve
 
 import processing.core.PApplet
 import processing.core.PGraphics
-import kotlin.math.PI
-import kotlin.math.floor
-import kotlin.math.max
-import kotlin.math.min
+import kotlin.math.*
 
 fun main(): Unit = PApplet.main("org.mavriksc.sieve.SieveCircles")
 
@@ -16,9 +13,8 @@ private const val TRACK_ROWS = 30
 private const val LEFT_MARGIN = 42f
 private const val TOP_MARGIN = 34f
 private const val BOTTOM_MARGIN = 54f
-private const val TARGET_FRAME_RATE = 20f
-private const val WHEEL_SPEED_UNITS_PER_SECOND = 2f
-private const val WHEEL_SPEED_UNITS = WHEEL_SPEED_UNITS_PER_SECOND / TARGET_FRAME_RATE
+private const val REQUESTED_FRAME_RATE = 1000f
+private const val WHEEL_SPEED_UNITS_PER_FRAME = 0.1f
 private const val TWO_PI_FLOAT = (PI * 2.0).toFloat()
 private const val WINDOW_WIDTH = (LEFT_MARGIN * 2 + TRACK_UNITS_PER_ROW * UNIT_WIDTH).toInt()
 private const val WINDOW_HEIGHT = (TOP_MARGIN + TRACK_ROWS * ROW_HEIGHT + BOTTOM_MARGIN).toInt()
@@ -30,7 +26,7 @@ class SieveCircles : PApplet() {
     private var sieve = RollingSieve(
         unitsPerRow = TRACK_UNITS_PER_ROW,
         rowCount = TRACK_ROWS,
-        speedUnitsPerFrame = WHEEL_SPEED_UNITS,
+        speedUnitsPerFrame = WHEEL_SPEED_UNITS_PER_FRAME,
     )
     private var paused = false
 
@@ -39,7 +35,7 @@ class SieveCircles : PApplet() {
     }
 
     override fun setup() {
-        frameRate(TARGET_FRAME_RATE)
+        frameRate(REQUESTED_FRAME_RATE)
         textAlign(CENTER, CENTER)
         strokeCap(SQUARE)
         rebuildTrackLayer()
@@ -62,7 +58,7 @@ class SieveCircles : PApplet() {
                 sieve = RollingSieve(
                     unitsPerRow = TRACK_UNITS_PER_ROW,
                     rowCount = TRACK_ROWS,
-                    speedUnitsPerFrame = WHEEL_SPEED_UNITS,
+                    speedUnitsPerFrame = WHEEL_SPEED_UNITS_PER_FRAME,
                 )
                 paused = false
                 rebuildTrackLayer()
@@ -133,7 +129,7 @@ class SieveCircles : PApplet() {
             val y = trackY - radius
             val wheelColor = wheelColor(wheel.base)
             val arcWidth = wheel.unitArcRadians(UNIT_WIDTH)
-            val arcCenter = PI.toFloat() / 2f + wheel.rotationRadians()
+            val arcCenter = PI / 2f + wheel.rotationRadians
 
             stroke(wheelColor)
             strokeWeight(1.35f)
@@ -188,8 +184,9 @@ internal class RollingSieve(
     private val speedUnitsPerFrame: Float,
 ) {
     private val maxSegment = unitsPerRow * rowCount
+    private val maxWheelBase = floor(sqrt(maxSegment.toFloat())).toInt()
     private val darkenedBy = arrayOfNulls<Int>(maxSegment + 1)
-    private val wheels = mutableListOf(RollingWheel(base = 2))
+    private val wheels = mutableListOf(RollingWheel(base = 2, speedUnitsPerFrame = speedUnitsPerFrame))
     private val spawnedBases = linkedSetOf(2)
 
     init {
@@ -201,7 +198,7 @@ internal class RollingSieve(
         val activeBeforeAdvance = wheels.toList()
         activeBeforeAdvance.forEach { wheel ->
             val previousDistance = wheel.distanceUnits
-            wheel.distanceUnits = min(maxSegment.toFloat(), wheel.distanceUnits + speedUnitsPerFrame)
+            wheel.advance(maxSegment.toFloat())
             darkenedThisFrame += darkenTouchedSegments(wheel.base, previousDistance, wheel.distanceUnits)
         }
         wheels.removeAll { it.distanceUnits >= maxSegment.toFloat() }
@@ -217,6 +214,9 @@ internal class RollingSieve(
 
     fun lowestLiveSegment(): Int? = (2..maxSegment).firstOrNull { darkenedBy[it] == null && it !in spawnedBases }
 
+    fun lowestSpawnableSegment(): Int? =
+        (2..maxWheelBase).firstOrNull { darkenedBy[it] == null && it !in spawnedBases }
+
     private fun darkenTouchedSegments(base: Int, previousDistance: Float, currentDistance: Float): List<DarkenedSegment> {
         val darkenedThisFrame = mutableListOf<DarkenedSegment>()
         val firstSegment = max(2, floor(previousDistance).toInt() + 1)
@@ -231,27 +231,34 @@ internal class RollingSieve(
     }
 
     private fun spawnLowestLiveSegmentPassedByAllActiveWheels() {
-        val nextBase = lowestLiveSegment() ?: return
+        val nextBase = lowestSpawnableSegment() ?: return
         val trailingDistance = wheels.minOfOrNull { it.distanceUnits } ?: return
-        if (trailingDistance < nextBase.toFloat()) return
+        if (trailingDistance < nextBase.toFloat() + 1f) return
 
         spawnedBases += nextBase
-        wheels += RollingWheel(base = nextBase)
+        wheels += RollingWheel(base = nextBase, speedUnitsPerFrame = speedUnitsPerFrame)
     }
 }
 
 internal data class RollingWheel(
     val base: Int,
-    var distanceUnits: Float = 0f,
+    private val speedUnitsPerFrame: Float = 0.1f,
+    var distanceUnits: Float = base.toFloat(),
+    var rotationRadians: Float = 0f,
 ) {
+    private val rotationStepRadians = (speedUnitsPerFrame / base.toFloat()) * TWO_PI_FLOAT
+
+    fun advance(maxDistanceUnits: Float) {
+        distanceUnits = min(maxDistanceUnits, distanceUnits + speedUnitsPerFrame)
+        rotationRadians = (rotationRadians + rotationStepRadians) % TWO_PI_FLOAT
+    }
+
     fun rowIndex(unitsPerRow: Int): Int = floor(distanceUnits / unitsPerRow.toFloat()).toInt()
 
     fun columnProgress(unitsPerRow: Int): Float {
         val wrapped = distanceUnits % unitsPerRow.toFloat()
         return if (wrapped == 0f && distanceUnits > 0f) unitsPerRow.toFloat() else wrapped
     }
-
-    fun rotationRadians(): Float = (distanceUnits / base.toFloat()) * TWO_PI_FLOAT
 
     fun radiusPixels(unitWidth: Float): Float = (base.toFloat() * unitWidth) / TWO_PI_FLOAT
 
